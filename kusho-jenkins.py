@@ -5,7 +5,7 @@ import pandas as pd
 from tabulate import tabulate
 
 def call_api():
-    url = "https://be.kusho.ai/run/test_suite"
+    url = "https://staging-be.kusho.ai/run/test_suite"
 
     # Read environment variables
     test_suite_uuid = os.environ.get('TEST_SUITE_UUID')
@@ -35,29 +35,39 @@ def call_api():
     return data
 
 def format_output(data):
-    # Extract relevant data for tabular display
-    headers = ["Description","Status Code", "Test Status"]
-    results = []
-    for item in data['result']:
-        test_case = item['test_case']
-        execution_status = item['assertion_status']
-        execution_status_symbol = "Failed ✘" if execution_status == 'fail' else "Passed ✔"  
-        api_status_code = item['response']
+    headers = ["Description", "Status Code", "Test Status"]
+    all_results = []
 
-        result = [
-            test_case['test_case_desc'],
-            api_status_code or None,
-            execution_status_symbol
-        ]
-        results.append(result)
+    for test_suite_index, test_suite in enumerate(data['result'], 1):
+        results = []
+        for item in test_suite:
+            test_case = item['test_case']
+            execution_status = item['assertion_status']
+            execution_status_symbol = "Failed ✘" if execution_status in ['fail', 'N/A'] else "Passed ✔"
+
+            api_status_code = item['response']
+
+            result = [
+                test_case['test_case_desc'],
+                api_status_code or None,
+                execution_status_symbol
+            ]
+            results.append(result)
+        
+        all_results.append((f"Test Suite {test_suite_index}", results))
     
-    return headers, results
+    return headers, all_results
 
 def main():
     try:
         data = call_api()
-        headers, results = format_output(data)
-        print(tabulate(results, headers, tablefmt="pretty"))
+        headers, all_results = format_output(data)
+        
+        for suite_name, results in all_results:
+            print(f"\n{suite_name}")
+            print(tabulate(results, headers, tablefmt="pretty"))
+            print("\n" + "="*50 + "\n")  # Separator between tables
+            
     except Exception as e:
         print(f"An error occurred: {e}")
 
