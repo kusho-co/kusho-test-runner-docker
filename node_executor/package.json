@@ -1,0 +1,29 @@
+{
+  "name": "node_executor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "mocha -r ts-node/register src/test.ts",
+    "cli": "ts-node src/cli.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "flatted": "^3.3.1",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.14",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.12.7",
+    "chai": "^5.1.0",
+    "commander": "^12.0.0",
+    "mocha": "^10.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
