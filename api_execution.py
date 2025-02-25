@@ -86,8 +86,7 @@ def format_output(data):
         for item in test_suite['test_cases']:
             test_case = item['test_case']
             execution_status = item['assertion_status']
-            execution_status_symbol = "Failed ✘" if execution_status in ['fail', 'N/A'] else "Passed ✔"
-
+            execution_status_symbol = "Failed ✘" if execution_status == 'fail' else "N/A" if execution_status == 'N/A' else "Passed ✔"
             api_status_code = item['response']
 
             result = [
