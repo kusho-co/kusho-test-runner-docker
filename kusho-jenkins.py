@@ -95,12 +95,20 @@ def main() -> None:
         headers, all_results = format_output(data)
         display_results(headers, all_results)
         send_test_suite_report_email(test_data=data)
+        for test_suite in data["result"]:
+            for test_case in test_suite["test_cases"]:
+                if test_case["assertion_status"] == "fail":
+                    exit(1)  # exit with status 1 if any test case fails
+        exit(0)
     except requests.exceptions.RequestException as e:
         print(f"API request failed: {e}")
+        exit(1)
     except ValueError as e:
         print(f"Configuration error: {e}")
+        exit(1)
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        exit(1)
 
 if __name__ == "__main__":
     main()
