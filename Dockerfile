@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update -q -y && DEBIAN_FRONTEND="noninteractive" apt-get install --yes python3-pip python3-opencv tesseract-ocr git-all curl unzip
+RUN apt-get update -q -y && DEBIAN_FRONTEND="noninteractive" apt-get install --yes python3-pip git-all curl unzip
 
 
 

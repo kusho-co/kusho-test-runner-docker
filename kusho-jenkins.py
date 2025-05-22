@@ -7,8 +7,11 @@ from typing import Dict, Any, Optional
 from api_execution import process_test_suites, format_output
 
 # Define URL constants
-API_URL = "https://be.kusho.ai/run/test-suite-metadata"
-EMAIL_URL = "https://be.kusho.ai/run/test-suite-email"
+BASE_URL = os.getenv("BASE_URL", "https://be.kusho.ai")
+if BASE_URL[-1] == "/":  # remove ending slash
+    BASE_URL = BASE_URL[:-1]
+TEST_DATA_FETCH_URL = f"{BASE_URL}/run/test-suite/metadata"
+POST_PROCESS_URL = f"{BASE_URL}/run/test-suite/post-process"
 
 def get_env_var(var_name: str, required: bool = True) -> Optional[str]:
     value = os.environ.get(var_name)
@@ -30,16 +33,17 @@ def call_api_for_uuid(uuid: str, environment_id: str, api_key: str) -> Dict[str,
         'API-KEY': api_key,
         'Content-Type': 'application/json',
     }
-    return make_api_request(API_URL, payload, headers)
+    return make_api_request(TEST_DATA_FETCH_URL, payload, headers)
 
 def call_api() -> Dict[str, Any]:
     test_suite_uuids = get_env_var('TEST_SUITE_UUID', required=False)
     group_id = get_env_var('GROUP_ID', required=False)
     environment_id = get_env_var('ENVIRONMENT_ID')
     api_key = get_env_var('API_KEY')
+    tags = get_env_var('TAGS', required=False)
 
-    if not (test_suite_uuids or group_id):
-        raise ValueError("Either TEST_SUITE_UUID or GROUP_ID must be set")
+    if not (test_suite_uuids or group_id or tags):
+        raise ValueError("Either TEST_SUITE_UUID, GROUP_ID or TAGS must be set")
 
     all_results = []
 
@@ -50,7 +54,18 @@ def call_api() -> Dict[str, Any]:
             'API-KEY': api_key,
             'Content-Type': 'application/json',
         }
-        metadata = make_api_request(API_URL, payload, headers)
+        metadata = make_api_request(TEST_DATA_FETCH_URL, payload, headers)
+        all_results.extend(metadata.get('result', []))
+    elif tags:
+        # Handle multiple tags
+        tags = [t.strip() for t in tags.split(",")]
+        tags = [t for t in tags if t]  # remove empty values
+        payload = {"environment_id": environment_id, "tags": tags}
+        headers = {
+            'API-KEY': api_key,
+            'Content-Type': 'application/json',
+        }
+        metadata = make_api_request(TEST_DATA_FETCH_URL, payload, headers)
         all_results.extend(metadata.get('result', []))
     elif test_suite_uuids:
         # Handle multiple UUIDs
@@ -62,25 +77,26 @@ def call_api() -> Dict[str, Any]:
     processed_results = process_test_suites(all_results)
     return {"result": processed_results}
 
-def send_test_suite_report_email(test_data: Dict[str, Any]) -> Dict[str, Any]:
+def test_suite_execution_post_processing(test_data: Dict[str, Any]) -> Dict[str, Any]:
     email = get_env_var('EMAIL', required=False)
     api_key = get_env_var('API_KEY')
-
-    if not email:
-        print("Email not provided. Skipping email report.")
-        return {}
+    commit_info = {
+        "commit_hash": get_env_var("CI_COMMIT_SHA", required=False),
+        "commit_message": get_env_var("CI_COMMIT_MESSAGE", required=False)
+    }
 
     payload = {
         "test_data": test_data,
-        "email": email
+        "email": email,
+        "commit_info": commit_info
     }
 
     headers = {
-            'API-KEY': api_key,
-            'Content-Type': 'application/json',
-        }
+        'API-KEY': api_key,
+        'Content-Type': 'application/json',
+    }
 
-    return make_api_request(EMAIL_URL, payload, headers)
+    return make_api_request(POST_PROCESS_URL, payload, headers)
 
 def display_results(headers: list, all_results: list) -> None:
     colalign = ["left"] * len(headers)  # Apply left alignment for all columns
@@ -94,7 +110,7 @@ def main() -> None:
         data = call_api()
         headers, all_results = format_output(data)
         display_results(headers, all_results)
-        send_test_suite_report_email(test_data=data)
+        test_suite_execution_post_processing(test_data=data)
         for test_suite in data["result"]:
             for test_case in test_suite["test_cases"]:
                 if test_case["assertion_status"] == "fail":
